@@ -1,21 +1,22 @@
 <?php
 
-use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\NewsController;
-use App\Http\Controllers\Api\UserController;
-use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\AnnouncementController;
-use App\Http\Controllers\Api\SubscriberController;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BusinessPartnerController;
 use App\Http\Controllers\Api\CommunityController;
+use App\Http\Controllers\Api\ContactController;
+use App\Http\Controllers\Api\GalleryController;
 use App\Http\Controllers\Api\GoalsController;
+use App\Http\Controllers\Api\LegitimacyController;
 use App\Http\Controllers\Api\MissionAndVisionController;
+use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\ObjectiveController;
 use App\Http\Controllers\Api\OfficeContactController;
-use App\Http\Controllers\Api\BusinessPartnerController;
-use App\Http\Controllers\Api\LegitimacyController;
-
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\SubscriberController;
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\VlogController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 // Public routes - NO /api prefix needed (Laravel adds it automatically)
 Route::post('auth/register', [AuthController::class, 'register']);
@@ -46,14 +47,8 @@ Route::middleware('auth:sanctum')->group(function () {
 // ===================================
 // APPLICATION ROUTES (All Protected)
 
-
-
-
-
 // Public route - Get approved business partners (no auth required)
 Route::get('business-partners', [BusinessPartnerController::class, 'index']);
-
-
 
 // MEMBERS
 // Protected routes - Require authentication
@@ -83,43 +78,29 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
-
-
 Route::middleware('auth:sanctum')->group(function () {
     // member legitimacy request routes
     Route::get('legitimacy', [LegitimacyController::class, 'userIndex']);
     Route::post('legitimacy', [LegitimacyController::class, 'userStore']);
     Route::put('legitimacy/{id}', [LegitimacyController::class, 'userUpdate']);
+
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {
-
-    // Member legitimacy routes
-    Route::prefix('users')->group(function () {
-        Route::get('legitimacy', [LegitimacyController::class, 'userIndex']);
-        Route::post('legitimacy', [LegitimacyController::class, 'userStore']);
-        Route::put('legitimacy/{id}', [LegitimacyController::class, 'userUpdate']);
-        Route::delete('legitimacy/{id}', [LegitimacyController::class, 'userDestroy']);
-        Route::get('legitimacy/{id}/pdf', [LegitimacyController::class, 'userGeneratePDF']);
-    });
-
     // Admin routes
     Route::prefix('admin')->group(function () {
-        Route::get('legitimacy', [LegitimacyController::class, 'adminIndex']);
-        Route::post('legitimacy', [LegitimacyController::class, 'adminStore']);
-        Route::match(['put', 'post'], 'legitimacy/{id}', [
-            LegitimacyController::class,
-            'adminUpdate'
-        ]);
-        Route::delete('legitimacy/{id}', [LegitimacyController::class, 'adminDestroy']);
-        Route::get('legitimacy/{id}/pdf', [LegitimacyController::class, 'generatePDF']);
+        Route::get('/legitimacy', [LegitimacyController::class, 'adminIndex']);
+        Route::post('/legitimacy', [LegitimacyController::class, 'adminStore']);
+        Route::put('/legitimacy/{id}', [LegitimacyController::class, 'adminUpdate']);
+        Route::post('/legitimacy/{id}', [LegitimacyController::class, 'adminUpdate']); // For form data with _method
+        Route::delete('/legitimacy/{id}', [LegitimacyController::class, 'adminDestroy']);
     });
 });
 
-
-
-
-
+Route::middleware(['auth:sanctum'])->group(function () {
+    // ... existing routes
+    Route::get('/admin/legitimacy/{id}/pdf', [LegitimacyController::class, 'generatePDF']);
+});
 
 Route::post('/contacts', [ContactController::class, 'store']);
 
@@ -130,9 +111,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::patch('/contacts/{id}/status', [ContactController::class, 'updateStatus']);
     Route::post('/admin/contacts/{id}/reply', [ContactController::class, 'reply']);
 });
-
-Route::get('/announcements/published', [AnnouncementController::class, 'published']);
-
 
 Route::prefix('news')->group(function () {
     Route::get('/published', [NewsController::class, 'published']);
@@ -180,7 +158,6 @@ Route::middleware(['auth:sanctum'])->prefix('admin/subscribers')->group(function
     Route::delete('{id}', [SubscriberController::class, 'destroy']);
 });
 
-
 Route::middleware('auth:sanctum')->prefix('our-community')->group(function () {
     Route::get('/', [CommunityController::class, 'index']);
     Route::post('/', [CommunityController::class, 'store']);
@@ -221,4 +198,29 @@ Route::middleware('auth:sanctum')->prefix('office-contact')->group(function () {
     Route::post('/', [OfficeContactController::class, 'store']);
     Route::put('/', [OfficeContactController::class, 'update']);
     Route::delete('/', [OfficeContactController::class, 'destroy']);
+});
+
+// Public active vlogs
+Route::get('/vlogs', [VlogController::class, 'index']);
+Route::middleware(['auth:sanctum'])->group(function () {
+
+    // Admin list
+    Route::get('admin/vlogs', [VlogController::class, 'adminIndex']);
+    //  CHUNKED UPLOAD (CREATE)
+    Route::post('admin/vlogs/chunk-upload', [VlogController::class, 'uploadChunk']);
+    //  CHUNKED UPLOAD (UPDATE)
+    Route::post('admin/vlogs/{vlog}/chunk-upload', [VlogController::class, 'uploadChunk']);
+    // Normal CRUD (optional fallback)
+    Route::post('admin/vlogs', [VlogController::class, 'store']);
+    Route::put('admin/vlogs/{vlog}', [VlogController::class, 'update']);
+    Route::delete('admin/vlogs/{vlog}', [VlogController::class, 'destroy']);
+});
+
+Route::get('/galleries', [GalleryController::class, 'index']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    // Admin
+    Route::post('admin/galleries', [GalleryController::class, 'store']);
+    Route::put('admin/galleries/{id}', [GalleryController::class, 'update']);
+    Route::delete('admin/galleries/{id}', [GalleryController::class, 'destroy']);
 });
