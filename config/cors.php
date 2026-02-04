@@ -1,7 +1,6 @@
 <?php
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Laravel CORS Configuration
@@ -12,7 +11,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:3000' ],
+    'allowed_origins' => ['http://localhost:3000', 'https://infinitech-api13.site'],
 
     'allowed_origins_patterns' => [],
 
@@ -22,5 +21,5 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => true, 
+    'supports_credentials' => true,
 ];

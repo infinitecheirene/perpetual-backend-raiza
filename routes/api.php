@@ -14,7 +14,9 @@ use App\Http\Controllers\Api\ObjectiveController;
 use App\Http\Controllers\Api\OfficeContactController;
 use App\Http\Controllers\Api\SubscriberController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\JuanTapController;
 use App\Http\Controllers\Api\VlogController;
+use App\Http\Controllers\EventController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -45,7 +47,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // ===================================
-// APPLICATION ROUTES (All Protected)
+// APPLICATION ROUTES
 
 // Public route - Get approved business partners (no auth required)
 Route::get('business-partners', [BusinessPartnerController::class, 'index']);
@@ -53,14 +55,6 @@ Route::get('business-partners', [BusinessPartnerController::class, 'index']);
 // MEMBERS
 // Protected routes - Require authentication
 Route::middleware('auth:sanctum')->group(function () {
-    // Auth routes
-    Route::post('auth/logout', [AuthController::class, 'logout']);
-    Route::get('auth/me', [AuthController::class, 'me']);
-    Route::post('auth/refresh', [AuthController::class, 'refresh']);
-    Route::get('/user', function (Request $request) {
-        return $request->user();
-    });
-
     // Member routes for business partners
     Route::prefix('user')->group(function () {
         Route::get('business-partners', [BusinessPartnerController::class, 'userIndex']);
@@ -78,12 +72,28 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
+// ===================================
+// COMMUNITY ROUTES
+
+// PUBLIC route - Get community data (no auth required)
+Route::get('our-community', [CommunityController::class, 'index']);
+
+// PROTECTED routes - Require authentication
+Route::middleware('auth:sanctum')->prefix('our-community')->group(function () {
+    Route::get('show', [CommunityController::class, 'show']);
+    Route::post('/', [CommunityController::class, 'store']);
+    Route::put('/', [CommunityController::class, 'update']);
+    Route::delete('/', [CommunityController::class, 'destroy']);
+});
+
+// ===================================
+// LEGITIMACY ROUTES
+
 Route::middleware('auth:sanctum')->group(function () {
     // member legitimacy request routes
     Route::get('legitimacy', [LegitimacyController::class, 'userIndex']);
     Route::post('legitimacy', [LegitimacyController::class, 'userStore']);
     Route::put('legitimacy/{id}', [LegitimacyController::class, 'userUpdate']);
-
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -98,9 +108,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {
-    // ... existing routes
     Route::get('/admin/legitimacy/{id}/pdf', [LegitimacyController::class, 'generatePDF']);
 });
+
+// ===================================
+// CONTACT ROUTES
 
 Route::post('/contacts', [ContactController::class, 'store']);
 
@@ -111,6 +123,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::patch('/contacts/{id}/status', [ContactController::class, 'updateStatus']);
     Route::post('/admin/contacts/{id}/reply', [ContactController::class, 'reply']);
 });
+
+// ===================================
+// NEWS ROUTES
 
 Route::prefix('news')->group(function () {
     Route::get('/published', [NewsController::class, 'published']);
@@ -131,17 +146,23 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 });
 
+// ===================================
+// ANNOUNCEMENT ROUTES
+
 Route::get('/announcements', [AnnouncementController::class, 'index']);
+Route::get('/announcements/published', [AnnouncementController::class, 'published']);
 Route::get('/announcements/{id}', [AnnouncementController::class, 'show']);
 
 // Protected routes - admin only
 Route::middleware(['auth:sanctum'])->group(function () {
-    Route::apiResource('announcements', AnnouncementController::class);
     Route::post('/announcements', [AnnouncementController::class, 'store']);
     Route::patch('/announcements/{id}', [AnnouncementController::class, 'update']);
     Route::delete('/announcements/{id}', [AnnouncementController::class, 'destroy']);
     Route::post('/announcements/{id}/toggle-active', [AnnouncementController::class, 'toggleActive']);
 });
+
+// ===================================
+// SUBSCRIBER ROUTES
 
 Route::get('/subscribers/active', [SubscriberController::class, 'getActiveSubscribers']);
 Route::prefix('subscribers')->group(function () {
@@ -158,20 +179,21 @@ Route::middleware(['auth:sanctum'])->prefix('admin/subscribers')->group(function
     Route::delete('{id}', [SubscriberController::class, 'destroy']);
 });
 
-Route::middleware('auth:sanctum')->prefix('our-community')->group(function () {
-    Route::get('/', [CommunityController::class, 'index']);
-    Route::post('/', [CommunityController::class, 'store']);
-    Route::put('/', [CommunityController::class, 'update']);
-    Route::delete('/', [CommunityController::class, 'destroy']);
-});
+// ===================================
+// GOALS ROUTES
+
+// Public route - Get goals data
+Route::get('goals', [GoalsController::class, 'show']);
 
 // Protected admin routes - require authentication
 Route::middleware('auth:sanctum')->prefix('goals')->group(function () {
-    Route::get('/show', [GoalsController::class, 'show']);
     Route::post('/', [GoalsController::class, 'store']);
     Route::put('/', [GoalsController::class, 'update']);
     Route::delete('/', [GoalsController::class, 'destroy']);
 });
+
+// ===================================
+// MISSION AND VISION ROUTES
 
 // Public mission and vision routes - no require authentication
 Route::get('/mission-and-vision', [MissionAndVisionController::class, 'index']);
@@ -184,13 +206,21 @@ Route::middleware('auth:sanctum')->prefix('mission-and-vision')->group(function 
     Route::delete('/', [MissionAndVisionController::class, 'destroy']);
 });
 
+// ===================================
+// OBJECTIVES ROUTES
+
+// Public route - Get objectives data
+Route::get('objectives', [ObjectiveController::class, 'show']);
+
 // Protected objectives routes - require authentication
 Route::middleware('auth:sanctum')->prefix('objectives')->group(function () {
-    Route::get('/', [ObjectiveController::class, 'show']);
     Route::post('/', [ObjectiveController::class, 'store']);
     Route::put('/', [ObjectiveController::class, 'update']);
     Route::delete('/', [ObjectiveController::class, 'destroy']);
 });
+
+// ===================================
+// OFFICE CONTACT ROUTES
 
 // Protected office-contact routes - require authentication
 Route::middleware('auth:sanctum')->prefix('office-contact')->group(function () {
@@ -200,10 +230,13 @@ Route::middleware('auth:sanctum')->prefix('office-contact')->group(function () {
     Route::delete('/', [OfficeContactController::class, 'destroy']);
 });
 
+// ===================================
+// VLOG ROUTES
+
 // Public active vlogs
 Route::get('/vlogs', [VlogController::class, 'index']);
-Route::middleware(['auth:sanctum'])->group(function () {
 
+Route::middleware(['auth:sanctum'])->group(function () {
     // Admin list
     Route::get('admin/vlogs', [VlogController::class, 'adminIndex']);
     //  CHUNKED UPLOAD (CREATE)
@@ -216,6 +249,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::delete('admin/vlogs/{vlog}', [VlogController::class, 'destroy']);
 });
 
+// ===================================
+// GALLERY ROUTES
+
 Route::get('/galleries', [GalleryController::class, 'index']);
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -223,4 +259,35 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('admin/galleries', [GalleryController::class, 'store']);
     Route::put('admin/galleries/{id}', [GalleryController::class, 'update']);
     Route::delete('admin/galleries/{id}', [GalleryController::class, 'destroy']);
+});
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('juantap', [JuanTapController::class, 'show']);
+    Route::post('juantap', [JuanTapController::class, 'store']);
+    Route::put('juantap', [JuanTapController::class, 'update']);
+    Route::delete('juantap', [JuanTapController::class, 'destroy']);
+});
+
+// JUANTAP ROUTES - FIXED
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('juantap', [JuanTapController::class, 'show']);
+    Route::post('juantap', [JuanTapController::class, 'store']);
+    Route::put('juantap/{id}', [JuanTapController::class, 'update']);
+    Route::delete('juantap/{id}', [JuanTapController::class, 'destroy']);
+});
+
+// MEMBER PROFILE ROUTES
+Route::middleware('auth:sanctum')->group(function () {
+    Route::put('/member/profile', [UserController::class, 'updateProfile']);
+    Route::get('/member/profile', [UserController::class, 'getProfile']);
+});
+
+// ===================================
+// EVENT ROUTES
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/events', [EventController::class, 'store']);
+    Route::get('/events', [EventController::class, 'index']);
+    Route::post('/events/{id}/respond', [EventController::class, 'respond']);
+    Route::middleware('auth:sanctum')->get('/events/invites', [EventController::class, 'getInvites']);
 });

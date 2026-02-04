@@ -4,13 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\MemberProfile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class UserController extends Controller
 {
+    /**
+     * Admin: List all members with filters
+     */
     public function index(Request $request)
     {
         try {
@@ -30,12 +35,10 @@ class UserController extends Controller
                     'email_verified_at'
                 ]);
 
-            // Filter by status
             if ($request->has('status') && $request->status !== 'all') {
                 $query->where('status', $request->status);
             }
 
-            // Search by name, email, or phone
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
@@ -53,13 +56,8 @@ class UserController extends Controller
                 'success' => true,
                 'data' => $users
             ]);
-
         } catch (\Exception $e) {
-            Log::error('Error fetching users', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
+            Log::error('Error fetching users', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch users',
@@ -68,6 +66,9 @@ class UserController extends Controller
         }
     }
 
+    /**
+     * Admin: Show a member by ID
+     */
     public function show($id)
     {
         try {
@@ -89,23 +90,12 @@ class UserController extends Controller
                 ->find($id);
 
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not found'
-                ], 404);
+                return response()->json(['success' => false, 'message' => 'User not found'], 404);
             }
 
-            return response()->json([
-                'success' => true,
-                'data' => $user
-            ]);
-
+            return response()->json(['success' => true, 'data' => $user]);
         } catch (\Exception $e) {
-            Log::error('Error fetching user', [
-                'user_id' => $id,
-                'error' => $e->getMessage()
-            ]);
-
+            Log::error('Error fetching user', ['user_id' => $id, 'error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch user',
@@ -114,6 +104,9 @@ class UserController extends Controller
         }
     }
 
+    /**
+     * Admin: Update member status
+     */
     public function updateStatus(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
@@ -131,23 +124,13 @@ class UserController extends Controller
 
         try {
             $user = User::find($id);
+            if (!$user)
+                return response()->json(['success' => false, 'message' => 'User not found'], 404);
 
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not found'
-                ], 404);
-            }
-
-            $updateData = [
-                'status' => $request->status,
-            ];
-
-            // If rejected or deactivated, save reason
+            $updateData = ['status' => $request->status];
             if (in_array($request->status, ['rejected', 'deactivated']) && $request->rejection_reason) {
                 $updateData['rejection_reason'] = $request->rejection_reason;
             } else {
-                // Clear rejection reason for approved status
                 $updateData['rejection_reason'] = null;
             }
 
@@ -161,26 +144,17 @@ class UserController extends Controller
                 'updated_by' => auth()->id()
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'User status updated successfully',
-                'data' => $user->fresh()
-            ]);
-
+            return response()->json(['success' => true, 'message' => 'User status updated', 'data' => $user->fresh()]);
         } catch (\Exception $e) {
-            Log::error('Error updating user status', [
-                'user_id' => $id,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update status: ' . $e->getMessage()
-            ], 500);
+            Log::error('Error updating status', ['user_id' => $id, 'error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Failed to update status'], 500);
         }
     }
 
-    public function statistics(Request $request)
+    /**
+     * Admin: Get member statistics
+     */
+    public function statistics()
     {
         try {
             $stats = [
@@ -191,44 +165,25 @@ class UserController extends Controller
                 'deactivated' => User::where('role', 'member')->where('status', 'deactivated')->count(),
             ];
 
-            return response()->json([
-                'success' => true,
-                'data' => $stats,
-            ]);
-
+            return response()->json(['success' => true, 'data' => $stats]);
         } catch (\Exception $e) {
-            Log::error('Error fetching user statistics', [
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch statistics',
-                'error' => $e->getMessage()
-            ], 500);
+            Log::error('Error fetching stats', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Failed to fetch statistics'], 500);
         }
     }
 
+    /**
+     * Admin: Export members PDF
+     */
     public function exportPDF(Request $request)
     {
         try {
             $query = User::where('role', 'member')
-                ->select([
-                    'id',
-                    'name',
-                    'email',
-                    'phone_number',
-                    'address',
-                    'fraternity_number',
-                    'status',
-                    'created_at',
-                    'updated_at'
-                ]);
+                ->select(['id', 'name', 'email', 'phone_number', 'address', 'fraternity_number', 'status', 'created_at', 'updated_at']);
 
             if ($request->has('status') && $request->status !== 'all') {
                 $query->where('status', $request->status);
             }
-
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
@@ -240,7 +195,6 @@ class UserController extends Controller
             }
 
             $users = $query->latest()->get();
-
             $stats = [
                 'total' => $users->count(),
                 'pending' => $users->where('status', 'pending')->count(),
@@ -249,34 +203,194 @@ class UserController extends Controller
                 'deactivated' => $users->where('status', 'deactivated')->count(),
             ];
 
-            $data = [
+            $pdf = Pdf::loadView('pdf.user-report', [
                 'users' => $users,
                 'stats' => $stats,
                 'date' => now()->format('F d, Y'),
                 'time' => now()->format('h:i A'),
                 'generatedDateTime' => now()->format('F d, Y g:i A'),
-            ];
-
-            $pdf = Pdf::loadView('pdf.user-report', $data)
-                ->setPaper('a4', 'portrait')
-                ->setOption('margin-top', 15)
-                ->setOption('margin-bottom', 15)
-                ->setOption('margin-left', 15)
-                ->setOption('margin-right', 15);
+            ])->setPaper('a4', 'portrait');
 
             return $pdf->download('users-report-' . now()->format('Y-m-d') . '.pdf');
-
         } catch (\Exception $e) {
-            Log::error('Error generating PDF', [
+            Log::error('PDF generation failed', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Failed to generate PDF'], 500);
+        }
+    }
+
+    /**
+     * Authenticated user: Get own basic information (without member profile)
+     */
+    public function me(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+            ], 401);
+        }
+
+        // Load member profile relation
+        $user->load('memberProfile');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'user' => [
+                    'id' => $user->id,
+                    'membership_id' => $user->membership_id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone_number' => $user->phone_number,
+                    'address' => $user->address,
+                    'fraternity_number' => $user->fraternity_number,
+                    'status' => $user->status,
+                    'role' => $user->role,
+                    'rejection_reason' => $user->rejection_reason,
+                    'created_at' => $user->created_at,
+                    'updated_at' => $user->updated_at,
+                    'member_profile' => $user->memberProfile ?? null,
+                ],
+            ],
+        ], 200);
+    }
+
+    /**
+     * Authenticated user: Update own profile
+     */
+    public function getProfile(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+            ], 401);
+        }
+
+        // Load related profiles
+        $user->load('memberProfile', 'juantapProfile');
+
+        // Base profile
+        $profileData = [
+            'name' => $user->name,
+            'status' => $user->status,
+            'membership_id' => $user->membership_id,
+            'member_since' => $user->created_at->year,
+        ];
+
+        // Merge member profile if exists
+        if ($user->memberProfile) {
+            $profileData = array_merge($profileData, [
+                'alias' => $user->memberProfile->alias,
+                'tenure' => $user->memberProfile->tenure,
+                'projects' => $user->memberProfile->projects,
+                'positions' => $user->memberProfile->positions,
+                'achievements' => $user->memberProfile->achievements,
+                'profile_image' => $user->memberProfile->profile_image,
+            ]);
+        } else {
+            // Ensure keys exist even if profile missing
+            $profileData = array_merge($profileData, [
+                'alias' => null,
+                'tenure' => null,
+                'projects' => null,
+                'positions' => null,
+                'achievements' => null,
+                'profile_image' => null,
+            ]);
+        }
+
+        // Merge juantap profile if exists
+        if ($user->juantapProfile) {
+            $profileData = array_merge($profileData, [
+                'juantap_nfc' => true,
+                'profile_url' => $user->juantapProfile->profile_url,
+                'qr_code' => $user->juantapProfile->qr_code,
+                'status' => $user->juantapProfile->status,
+                'subscription' => $user->juantapProfile->subscription,
+            ]);
+        } else {
+            $profileData = array_merge($profileData, [
+                'juantap_nfc' => false,
+                'profile_url' => null,
+                'qr_code' => null,
+                'status' => 'inactive',
+                'subscription' => 'silver',
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $profileData,
+        ]);
+    }
+
+    /**
+     * Authenticated user: Update own profile
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        try {
+            $data = [
+                'alias' => $request->input('alias'),
+                'tenure' => $request->input('tenure'),
+                'projects' => $request->input('projects'),
+                'positions' => $request->input('positions'),
+                'achievements' => $request->input('achievements'),
+            ];
+
+            // Handle uploaded profile image
+            if ($request->hasFile('profile_image')) {
+                $file = $request->file('profile_image');
+                $filename = 'profile_' . $user->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs('public/profiles', $filename);
+                $data['profile_image'] = '/storage/profiles/' . $filename;
+            }
+
+            // Update or create member profile
+            $profile = $user->memberProfile()->updateOrCreate(
+                ['user_id' => $user->id],
+                $data
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Profile updated successfully',
+                'data' => [
+                    'name' => $user->name,
+                    'status' => $user->status,
+                    'membership_id' => $user->membership_id,
+                    'member_since' => $user->created_at->year,
+                    'alias' => $profile->alias,
+                    'tenure' => $profile->tenure,
+                    'projects' => $profile->projects,
+                    'positions' => $profile->positions,
+                    'achievements' => $profile->achievements,
+                    'profile_image' => $profile->profile_image,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Profile update failed', [
+                'user_id' => $user->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to generate PDF',
-                'error' => $e->getMessage()
+                'message' => 'Failed to update profile',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
+
 }

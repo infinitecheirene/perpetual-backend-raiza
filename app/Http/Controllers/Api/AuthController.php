@@ -45,6 +45,10 @@ class AuthController extends Controller
                 'role' => 'member',
             ]);
 
+            // ✅ Assign membership ID immediately
+            $user->membership_id = $user->generateMembershipId();
+            $user->save();
+
             Log::info('New user registered', [
                 'user_id' => $user->id,
                 'email' => $user->email,
@@ -60,6 +64,7 @@ class AuthController extends Controller
                 'data' => [
                     'user' => [
                         'id' => $user->id,
+                        'membership_id' => $user->membership_id,
                         'name' => $user->name,
                         'email' => $user->email,
                         'phone_number' => $user->phone_number,
@@ -102,15 +107,22 @@ class AuthController extends Controller
             ], 422);
         }
 
+        // Log the email being used for login
+        Log::info('Login attempt', ['email' => $request->email]);
+
         // Find user by email
         $user = User::where('email', $request->email)->first();
 
+        // Log whether the user was found
+        if (!$user) {
+            Log::warning('User not found', ['email' => $request->email]);
+        }
+
         // Check if user exists and password is correct
-        if (! $user || ! Hash::check($request->password, $user->password)) {
-            Log::warning('Failed login attempt', [
-                'email' => $request->email,
-                'ip' => $request->ip(),
-            ]);
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            if ($user) {
+                Log::warning('Password mismatch', ['email' => $request->email]);
+            }
 
             return response()->json([
                 'success' => false,
@@ -127,8 +139,8 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Your account has been deactivated.'.
-                            ($user->rejection_reason ? ' Reason: '.$user->rejection_reason : ' Please contact the administrator for assistance.'),
+                'message' => 'Your account has been deactivated.' .
+                    ($user->rejection_reason ? ' Reason: ' . $user->rejection_reason : ' Please contact the administrator for assistance.'),
                 'data' => [
                     'status' => 'deactivated',
                     'reason' => $user->rejection_reason,
@@ -161,8 +173,8 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Your account registration was rejected.'.
-                            ($user->rejection_reason ? ' Reason: '.$user->rejection_reason : ' Please contact the administrator or register again with valid documents.'),
+                'message' => 'Your account registration was rejected.' .
+                    ($user->rejection_reason ? ' Reason: ' . $user->rejection_reason : ' Please contact the administrator or register again with valid documents.'),
                 'data' => [
                     'status' => 'rejected',
                     'reason' => $user->rejection_reason,
@@ -203,6 +215,7 @@ class AuthController extends Controller
             'token' => $token,
             'user' => [
                 'id' => $user->id,
+                'membership_id' => $user->membership_id,
                 'name' => $user->name,
                 'email' => $user->email,
                 'phone_number' => $user->phone_number,
@@ -261,6 +274,7 @@ class AuthController extends Controller
             'data' => [
                 'user' => [
                     'id' => $user->id,
+                    'membership_id' => $user->membership_id,
                     'name' => $user->name,
                     'email' => $user->email,
                     'phone_number' => $user->phone_number,
