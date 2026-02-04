@@ -11,6 +11,79 @@ use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
+
+    /**
+     * Get authenticated user account information
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function account(Request $request)
+    {
+        try {
+            $user = $request->user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated',
+                ], 401);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'phone_number' => $user->phone_number,
+                        'address' => $user->address,
+                        'fraternity_number' => $user->fraternity_number,
+                        'status' => $user->status,
+                        'role' => $user->role,
+                        'rejection_reason' => $user->rejection_reason,
+                        'created_at' => $user->created_at,
+                        'updated_at' => $user->updated_at,
+                    ],
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch account information',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get authenticated user
+     */
+    public function me(Request $request)
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone_number' => $user->phone_number,
+                    'address' => $user->address,
+                    'fraternity_number' => $user->fraternity_number,
+                    'status' => $user->status,
+                    'role' => $user->role,
+                    'rejection_reason' => $user->rejection_reason,
+                    'created_at' => $user->created_at,
+                    'updated_at' => $user->updated_at,
+                ],
+            ],
+        ], 200);
+    }
+
     /**
      * Register a new user
      */
@@ -106,7 +179,7 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         // Check if user exists and password is correct
-        if (! $user || ! Hash::check($request->password, $user->password)) {
+        if (!$user || !Hash::check($request->password, $user->password)) {
             Log::warning('Failed login attempt', [
                 'email' => $request->email,
                 'ip' => $request->ip(),
@@ -127,8 +200,8 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Your account has been deactivated.'.
-                            ($user->rejection_reason ? ' Reason: '.$user->rejection_reason : ' Please contact the administrator for assistance.'),
+                'message' => 'Your account has been deactivated.' .
+                    ($user->rejection_reason ? ' Reason: ' . $user->rejection_reason : ' Please contact the administrator for assistance.'),
                 'data' => [
                     'status' => 'deactivated',
                     'reason' => $user->rejection_reason,
@@ -161,8 +234,8 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Your account registration was rejected.'.
-                            ($user->rejection_reason ? ' Reason: '.$user->rejection_reason : ' Please contact the administrator or register again with valid documents.'),
+                'message' => 'Your account registration was rejected.' .
+                    ($user->rejection_reason ? ' Reason: ' . $user->rejection_reason : ' Please contact the administrator or register again with valid documents.'),
                 'data' => [
                     'status' => 'rejected',
                     'reason' => $user->rejection_reason,
@@ -247,33 +320,6 @@ class AuthController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
-    }
-
-    /**
-     * Get authenticated user
-     */
-    public function me(Request $request)
-    {
-        $user = $request->user();
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'phone_number' => $user->phone_number,
-                    'address' => $user->address,
-                    'fraternity_number' => $user->fraternity_number,
-                    'status' => $user->status,
-                    'role' => $user->role,
-                    'rejection_reason' => $user->rejection_reason,
-                    'created_at' => $user->created_at,
-                    'updated_at' => $user->updated_at,
-                ],
-            ],
-        ], 200);
     }
 
     /**

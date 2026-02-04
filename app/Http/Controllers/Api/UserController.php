@@ -35,14 +35,11 @@ class UserController extends Controller
                 $query->where('status', $request->status);
             }
 
-            // Search by name, email, or phone
+            // Search by name or alias
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhere('phone_number', 'like', "%{$search}%")
-                        ->orWhere('address', 'like', "%{$search}%");
+                    $q->where('name', 'like', "%{$search}%");
                 });
             }
 
