@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     public function up(): void
     {
         Schema::create('juantap_profiles', function (Blueprint $table) {
@@ -18,8 +17,7 @@ return new class extends Migration
             $table->string('profile_url')->nullable();
             $table->text('qr_code')->nullable(); // base64 or URL
             $table->enum('status', ['active', 'inactive'])->default('inactive');
-            $table->enum('subscription', ['free', 'basic', 'premium'])->default('free');
-
+            $table->enum('subscription', ['silver', 'gold', 'black'])->default('silver');
             $table->timestamps();
 
             $table->unique('user_id'); // one profile per user

@@ -11,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('barangay_blotters', function (Blueprint $table) {
-            $table->timestamp('approved_at')->nullable()->after('updated_at');
-            $table->timestamp('rejected_at')->nullable()->after('approved_at');
+        Schema::table('users', function (Blueprint $table) {
+            $table->string('membership_id')->unique()->nullable()->index()->after('fraternity_number');
         });
     }
 
@@ -22,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('barangay_blotters', function (Blueprint $table) {
-            $table->dropColumn(['approved_at', 'rejected_at']);
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropColumn('membership_id');
         });
     }
 };

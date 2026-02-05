@@ -4,13 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\MemberProfile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class UserController extends Controller
 {
+    /**
+     * Admin: List all members with filters
+     */
     public function index(Request $request)
     {
         try {
@@ -30,7 +35,6 @@ class UserController extends Controller
                     'email_verified_at'
                 ]);
 
-            // Filter by status
             if ($request->has('status') && $request->status !== 'all') {
                 $query->where('status', $request->status);
             }
@@ -50,13 +54,8 @@ class UserController extends Controller
                 'success' => true,
                 'data' => $users
             ]);
-
         } catch (\Exception $e) {
-            Log::error('Error fetching users', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
+            Log::error('Error fetching users', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch users',
@@ -65,6 +64,9 @@ class UserController extends Controller
         }
     }
 
+    /**
+     * Admin: Show a member by ID
+     */
     public function show($id)
     {
         try {
@@ -86,23 +88,12 @@ class UserController extends Controller
                 ->find($id);
 
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not found'
-                ], 404);
+                return response()->json(['success' => false, 'message' => 'User not found'], 404);
             }
 
-            return response()->json([
-                'success' => true,
-                'data' => $user
-            ]);
-
+            return response()->json(['success' => true, 'data' => $user]);
         } catch (\Exception $e) {
-            Log::error('Error fetching user', [
-                'user_id' => $id,
-                'error' => $e->getMessage()
-            ]);
-
+            Log::error('Error fetching user', ['user_id' => $id, 'error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch user',
@@ -111,6 +102,9 @@ class UserController extends Controller
         }
     }
 
+    /**
+     * Admin: Update member status
+     */
     public function updateStatus(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
@@ -128,23 +122,13 @@ class UserController extends Controller
 
         try {
             $user = User::find($id);
+            if (!$user)
+                return response()->json(['success' => false, 'message' => 'User not found'], 404);
 
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not found'
-                ], 404);
-            }
-
-            $updateData = [
-                'status' => $request->status,
-            ];
-
-            // If rejected or deactivated, save reason
+            $updateData = ['status' => $request->status];
             if (in_array($request->status, ['rejected', 'deactivated']) && $request->rejection_reason) {
                 $updateData['rejection_reason'] = $request->rejection_reason;
             } else {
-                // Clear rejection reason for approved status
                 $updateData['rejection_reason'] = null;
             }
 
@@ -158,26 +142,17 @@ class UserController extends Controller
                 'updated_by' => auth()->id()
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'User status updated successfully',
-                'data' => $user->fresh()
-            ]);
-
+            return response()->json(['success' => true, 'message' => 'User status updated', 'data' => $user->fresh()]);
         } catch (\Exception $e) {
-            Log::error('Error updating user status', [
-                'user_id' => $id,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update status: ' . $e->getMessage()
-            ], 500);
+            Log::error('Error updating status', ['user_id' => $id, 'error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Failed to update status'], 500);
         }
     }
 
-    public function statistics(Request $request)
+    /**
+     * Admin: Get member statistics
+     */
+    public function statistics()
     {
         try {
             $stats = [
@@ -188,44 +163,25 @@ class UserController extends Controller
                 'deactivated' => User::where('role', 'member')->where('status', 'deactivated')->count(),
             ];
 
-            return response()->json([
-                'success' => true,
-                'data' => $stats,
-            ]);
-
+            return response()->json(['success' => true, 'data' => $stats]);
         } catch (\Exception $e) {
-            Log::error('Error fetching user statistics', [
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch statistics',
-                'error' => $e->getMessage()
-            ], 500);
+            Log::error('Error fetching stats', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Failed to fetch statistics'], 500);
         }
     }
 
+    /**
+     * Admin: Export members PDF
+     */
     public function exportPDF(Request $request)
     {
         try {
             $query = User::where('role', 'member')
-                ->select([
-                    'id',
-                    'name',
-                    'email',
-                    'phone_number',
-                    'address',
-                    'fraternity_number',
-                    'status',
-                    'created_at',
-                    'updated_at'
-                ]);
+                ->select(['id', 'name', 'email', 'phone_number', 'address', 'fraternity_number', 'status', 'created_at', 'updated_at']);
 
             if ($request->has('status') && $request->status !== 'all') {
                 $query->where('status', $request->status);
             }
-
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
@@ -237,7 +193,6 @@ class UserController extends Controller
             }
 
             $users = $query->latest()->get();
-
             $stats = [
                 'total' => $users->count(),
                 'pending' => $users->where('status', 'pending')->count(),
@@ -246,34 +201,134 @@ class UserController extends Controller
                 'deactivated' => $users->where('status', 'deactivated')->count(),
             ];
 
-            $data = [
+            $pdf = Pdf::loadView('pdf.user-report', [
                 'users' => $users,
                 'stats' => $stats,
                 'date' => now()->format('F d, Y'),
                 'time' => now()->format('h:i A'),
                 'generatedDateTime' => now()->format('F d, Y g:i A'),
-            ];
-
-            $pdf = Pdf::loadView('pdf.user-report', $data)
-                ->setPaper('a4', 'portrait')
-                ->setOption('margin-top', 15)
-                ->setOption('margin-bottom', 15)
-                ->setOption('margin-left', 15)
-                ->setOption('margin-right', 15);
+            ])->setPaper('a4', 'portrait');
 
             return $pdf->download('users-report-' . now()->format('Y-m-d') . '.pdf');
-
         } catch (\Exception $e) {
-            Log::error('Error generating PDF', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            Log::error('PDF generation failed', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Failed to generate PDF'], 500);
+        }
+    }
 
+    /**
+     * Authenticated user: Get own basic information (without member profile)
+     */
+    public function me(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to generate PDF',
-                'error' => $e->getMessage()
-            ], 500);
+                'message' => 'Unauthorized',
+            ], 401);
         }
+
+        // Load member profile relation
+        $user->load('memberProfile');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'user' => [
+                    'id' => $user->id,
+                    'membership_id' => $user->membership_id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone_number' => $user->phone_number,
+                    'address' => $user->address,
+                    'fraternity_number' => $user->fraternity_number,
+                    'status' => $user->status,
+                    'role' => $user->role,
+                    'rejection_reason' => $user->rejection_reason,
+                    'created_at' => $user->created_at,
+                    'updated_at' => $user->updated_at,
+                    'member_profile' => $user->memberProfile ?? null,
+                ],
+            ],
+        ], 200);
+    }
+
+    /**
+     * Authenticated user: Update own profile
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = auth()->user();
+
+        $data = $request->only([
+            'alias',
+            'tenure',
+            'member_since',
+            'projects',
+            'positions',
+            'achievements',
+            'profile_image',
+            'juantap_nfc'
+        ]);
+
+        // Validate input
+        $validator = Validator::make($data, [
+            'alias' => 'nullable|string|max:255',
+            'tenure' => 'nullable|string|max:255',
+            'member_since' => 'nullable|date',
+            'projects' => 'nullable|string',
+            'positions' => 'nullable|string',
+            'achievements' => 'nullable|string',
+            'profile_image' => 'nullable|string|max:255',
+            'juantap_nfc' => 'nullable|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        // Debugging log to verify input data
+        Log::info('Updating MemberProfile with data:', $data);
+
+        // Update or create MemberProfile
+        $profile = $user->memberProfile;
+        if (!$profile) {
+            $profile = $user->memberProfile()->create($data);
+            Log::info('Created new MemberProfile:', $profile->toArray());
+        } else {
+            $profile->update($data);
+            Log::info('Updated existing MemberProfile:', $profile->toArray());
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Profile updated successfully',
+            'data' => [
+                'member_profile' => $profile,
+            ],
+        ]);
+    }
+
+    public function getProfile(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $user->memberProfile
+        ]);
     }
 }

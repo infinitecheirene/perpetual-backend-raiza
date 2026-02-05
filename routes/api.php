@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\SubscriberController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\JuanTapController;
 use App\Http\Controllers\Api\VlogController;
+use App\Http\Controllers\EventController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -154,11 +155,14 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::delete('/products/{id}', [ProductController::class, 'destroy']);
 });
 
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/admin/legitimacy/{id}/pdf', [LegitimacyController::class, 'generatePDF']);
+});
+
 // ===================================
 // CONTACTS
 
 Route::post('/contacts', [ContactController::class, 'store']);
-
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/contacts', [ContactController::class, 'index']);
     Route::get('/contacts/{id}', [ContactController::class, 'show']);
@@ -289,6 +293,25 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('juantap', [JuanTapController::class, 'show']);
     Route::post('juantap', [JuanTapController::class, 'store']);
-    Route::put('juantap', [JuanTapController::class, 'update']);
-    Route::delete('juantap', [JuanTapController::class, 'destroy']);
+    Route::put('juantap/{id}', [JuanTapController::class, 'update']);
+    Route::delete('juantap/{id}', [JuanTapController::class, 'destroy']);
+});
+
+// MEMBER PROFILE ROUTES
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('member/profile', [UserController::class, 'me']);           // read-only user
+    Route::get('/member/profile', [UserController::class, 'getProfile']);
+    Route::put('member/profile', [UserController::class, 'updateProfile']);  // editable
+    Route::get('member/profile/{id}', [UserController::class, 'show']);       // read-only by id
+});
+
+// ===================================
+// EVENT ROUTES
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/events', [EventController::class, 'store']);
+    Route::get('/events', [EventController::class, 'index']);
+    Route::post('/events/{id}/respond', [EventController::class, 'respond']);
+    Route::middleware('auth:sanctum')->get('/events/invites', [EventController::class, 'getInvites']);
 });

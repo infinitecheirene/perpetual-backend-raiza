@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class User extends Authenticatable
 {
@@ -18,18 +19,15 @@ class User extends Authenticatable
         'phone_number',
         'address',
         'fraternity_number',
+        'membership_id',
         'status',
         'role',
         'rejection_reason',
     ];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
-
     protected $visible = [
         'id',
+        'membership_id',
         'name',
         'email',
         'phone_number',
@@ -43,29 +41,48 @@ class User extends Authenticatable
         'email_verified_at',
     ];
 
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
 
-    // Role check methods
+    /**
+     * Generate membership ID
+     */
+    public function generateMembershipId(): string
+    {
+        $year = now()->year;
+        $sequence = str_pad($this->id, 5, '0', STR_PAD_LEFT);
+
+        return "MEM-{$year}-{$sequence}";
+    }
+
+    /**
+     * Role checks
+     */
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
     }
 
-    public function isUser(): bool
-    {
-        return $this->role === 'member';
-    }
-
-    // Add isMember() as an alias for isUser()
     public function isMember(): bool
     {
         return $this->role === 'member';
     }
 
-    // Status check methods
+    public function isUser(): bool
+    {
+        return $this->isMember();
+    }
+
+    /**
+     * Status checks
+     */
     public function isApproved(): bool
     {
         return $this->status === 'approved';
@@ -86,43 +103,16 @@ class User extends Authenticatable
         return $this->status === 'deactivated';
     }
 
-    // Query scopes for status
-    public function scopeApproved($query)
-    {
-        return $query->where('status', 'approved');
-    }
-
-    public function scopePending($query)
-    {
-        return $query->where('status', 'pending');
-    }
-
-    public function scopeDeactivated($query)
-    {
-        return $query->where('status', 'deactivated');
-    }
-
-    // Query scopes for role
-    public function scopeUsers($query)
-    {
-        return $query->where('role', 'member');
-    }
-
-    public function scopeAdmins($query)
-    {
-        return $query->where('role', 'admin');
-    }
-
-    public function members()
-    {
-        return $this->hasMany(Member::class);
-    }
-
     /**
-     * Relationship: User has many business partners
+     * Relationships
      */
-    public function businessPartners()
+    public function memberProfile(): HasOne
     {
-        return $this->hasMany(BusinessPartner::class);
+        return $this->hasOne(MemberProfile::class, 'user_id');
+    }
+
+    public function juantapProfile(): HasOne
+    {
+        return $this->hasOne(JuanTapProfile::class, 'user_id');
     }
 }

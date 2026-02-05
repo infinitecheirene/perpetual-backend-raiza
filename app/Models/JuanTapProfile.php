@@ -23,6 +23,8 @@ class JuanTapProfile extends Model
     protected $casts = [
         'status' => 'string',
         'subscription' => 'string',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**

@@ -58,33 +58,6 @@ class AuthController extends Controller
     }
 
     /**
-     * Get authenticated user
-     */
-    public function me(Request $request)
-    {
-        $user = $request->user();
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'phone_number' => $user->phone_number,
-                    'address' => $user->address,
-                    'fraternity_number' => $user->fraternity_number,
-                    'status' => $user->status,
-                    'role' => $user->role,
-                    'rejection_reason' => $user->rejection_reason,
-                    'created_at' => $user->created_at,
-                    'updated_at' => $user->updated_at,
-                ],
-            ],
-        ], 200);
-    }
-
-    /**
      * Register a new user
      */
     public function register(Request $request)
@@ -118,6 +91,10 @@ class AuthController extends Controller
                 'role' => 'member',
             ]);
 
+            // ✅ Assign membership ID immediately
+            $user->membership_id = $user->generateMembershipId();
+            $user->save();
+
             Log::info('New user registered', [
                 'user_id' => $user->id,
                 'email' => $user->email,
@@ -133,6 +110,7 @@ class AuthController extends Controller
                 'data' => [
                     'user' => [
                         'id' => $user->id,
+                        'membership_id' => $user->membership_id,
                         'name' => $user->name,
                         'email' => $user->email,
                         'phone_number' => $user->phone_number,
@@ -175,8 +153,16 @@ class AuthController extends Controller
             ], 422);
         }
 
+        // Log the email being used for login
+        Log::info('Login attempt', ['email' => $request->email]);
+
         // Find user by email
         $user = User::where('email', $request->email)->first();
+
+        // Log whether the user was found
+        if (!$user) {
+            Log::warning('User not found', ['email' => $request->email]);
+        }
 
         // Check if user exists and password is correct
         if (!$user || !Hash::check($request->password, $user->password)) {
@@ -276,6 +262,7 @@ class AuthController extends Controller
             'token' => $token,
             'user' => [
                 'id' => $user->id,
+                'membership_id' => $user->membership_id,
                 'name' => $user->name,
                 'email' => $user->email,
                 'phone_number' => $user->phone_number,
@@ -320,6 +307,34 @@ class AuthController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Get authenticated user
+     */
+    public function me(Request $request)
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'user' => [
+                    'id' => $user->id,
+                    'membership_id' => $user->membership_id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone_number' => $user->phone_number,
+                    'address' => $user->address,
+                    'fraternity_number' => $user->fraternity_number,
+                    'status' => $user->status,
+                    'role' => $user->role,
+                    'rejection_reason' => $user->rejection_reason,
+                    'created_at' => $user->created_at,
+                    'updated_at' => $user->updated_at,
+                ],
+            ],
+        ], 200);
     }
 
     /**

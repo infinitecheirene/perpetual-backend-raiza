@@ -13,21 +13,13 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-
-            // Basic Information
             $table->string('name');
             $table->text('address')->nullable();
             $table->string('email')->unique();
             $table->string('phone_number')->nullable();
-
-            // School / Organization Info
             $table->string('fraternity_number')->nullable();
-
-            // Authentication
             $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-
-            // Status & Role
+            $table->string('password'); 
             $table->enum('status', ['pending', 'approved', 'rejected', 'deactivated'])->default('pending');
             $table->enum('role', ['member', 'admin'])->default('member');
 

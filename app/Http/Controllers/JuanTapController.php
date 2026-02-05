@@ -47,7 +47,7 @@ class JuanTapController extends Controller
             'profile_url'  => 'nullable|url|max:255',
             'qr_code'      => 'nullable|string',
             'status'       => 'nullable|in:active,inactive',
-            'subscription' => 'nullable|in:free,basic,premium',
+            'subscription' => 'nullable|in:silver,gold,black',
         ]);
 
         if ($validator->fails()) {
@@ -61,7 +61,7 @@ class JuanTapController extends Controller
             'profile_url'  => $request->profile_url,
             'qr_code'      => $request->qr_code,
             'status'       => $request->status ?? 'inactive',
-            'subscription' => $request->subscription ?? 'free',
+            'subscription' => $request->subscription ?? 'silver',
         ]);
 
         Log::info('JuanTap profile created', [
@@ -94,7 +94,7 @@ class JuanTapController extends Controller
             'profile_url'  => 'nullable|url|max:255',
             'qr_code'      => 'nullable|string',
             'status'       => 'nullable|in:active,inactive',
-            'subscription' => 'nullable|in:free,basic,premium',
+            'subscription' => 'nullable|in:silver,gold,black',
         ]);
 
         if ($validator->fails()) {

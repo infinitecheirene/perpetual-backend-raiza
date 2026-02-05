@@ -25,6 +25,7 @@ class GalleryController extends Controller
                 'title' => $g->title,
                 'description' => $g->description,
                 'image_url' => url($g->image_path),
+                'type' => $g->type, // added
                 'created_at' => $g->created_at,
             ];
         });
@@ -40,14 +41,15 @@ class GalleryController extends Controller
     public function store(Request $request)
     {
         $admin = Auth::user();
-        if (! $admin || ! $admin->isAdmin()) {
+        if (!$admin || !$admin->isAdmin()) {
             return response()->json(['success' => false, 'message' => 'Only admins can add galleries.'], 403);
         }
 
         $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'image' => 'required|image|max:12288', // 12MB max
+            'image' => 'required|image|max:12288',
+            'type' => 'required|string|in:photo,video,interaction,event,gathering',
         ]);
 
         $imagePath = $this->saveImage($request->file('image'));
@@ -56,6 +58,7 @@ class GalleryController extends Controller
             'title' => $request->title,
             'description' => $request->description,
             'image_path' => $imagePath,
+            'type' => $request->type,
         ]);
 
         Log::info('[Gallery] Created new gallery', ['id' => $gallery->id, 'title' => $gallery->title]);
@@ -76,25 +79,31 @@ class GalleryController extends Controller
     public function update(Request $request, $id)
     {
         $admin = Auth::user();
-        if (! $admin || ! $admin->isAdmin()) {
+        if (!$admin || !$admin->isAdmin()) {
             return response()->json(['success' => false, 'message' => 'Only admins can update galleries.'], 403);
         }
 
         $gallery = Gallery::findOrFail($id);
 
+        // Validation: use sometimes because not all fields are required on update
         $request->validate([
             'title' => 'sometimes|required|string|max:255',
             'description' => 'nullable|string',
             'image' => 'nullable|image|max:12288',
+            'type' => 'sometimes|required|string|in:photo,video,interaction,event,gathering',
         ]);
 
-        // Update fields
+        // Update fields if provided
         if ($request->has('title')) {
             $gallery->title = $request->title;
         }
-        
+
         if ($request->has('description')) {
             $gallery->description = $request->description;
+        }
+
+        if ($request->has('type')) {
+            $gallery->type = $request->type;
         }
 
         // Handle image update
@@ -115,6 +124,7 @@ class GalleryController extends Controller
                 'title' => $gallery->title,
                 'description' => $gallery->description,
                 'image_url' => url($gallery->image_path),
+                'type' => $gallery->type,
                 'created_at' => $gallery->created_at,
             ]
         ]);
@@ -123,7 +133,7 @@ class GalleryController extends Controller
     public function destroy($id)
     {
         $admin = Auth::user();
-        if (! $admin || ! $admin->isAdmin()) {
+        if (!$admin || !$admin->isAdmin()) {
             return response()->json(['success' => false, 'message' => 'Only admins can delete galleries.'], 403);
         }
 
@@ -149,14 +159,14 @@ class GalleryController extends Controller
     {
         $folderPath = public_path($this->uploadFolder);
 
-        if (! is_dir($folderPath)) {
+        if (!is_dir($folderPath)) {
             mkdir($folderPath, 0755, true);
         }
 
-        $filename = time().'_'.preg_replace('/\s+/', '_', $file->getClientOriginalName());
+        $filename = time() . '_' . preg_replace('/\s+/', '_', $file->getClientOriginalName());
         $file->move($folderPath, $filename);
 
-        return $this->uploadFolder.'/'.$filename;
+        return $this->uploadFolder . '/' . $filename;
     }
 
     /**

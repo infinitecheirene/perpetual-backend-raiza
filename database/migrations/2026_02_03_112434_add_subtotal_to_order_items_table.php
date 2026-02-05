@@ -13,16 +13,16 @@ return new class extends Migration {
             // Link to order
             $table->unsignedBigInteger('order_id');
             $table->foreign('order_id')
-                  ->references('id')
-                  ->on('orders')
-                  ->onDelete('cascade');
+                ->references('id')
+                ->on('orders')
+                ->onDelete('cascade');
 
             // Link to product
             $table->unsignedBigInteger('product_id');
             $table->foreign('product_id')
-                  ->references('id')
-                  ->on('products')
-                  ->onDelete('cascade');
+                ->references('id')
+                ->on('products')
+                ->onDelete('cascade');
 
             // Item details
             $table->unsignedInteger('quantity')->default(1);
