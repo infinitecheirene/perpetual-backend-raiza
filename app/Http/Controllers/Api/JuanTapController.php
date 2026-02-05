@@ -28,6 +28,9 @@ class JuanTapController extends Controller
             'subscription' => 'required|in:silver,gold,black',
         ]);
 
+        // Debugging log to verify input data
+        Log::info('Creating JuanTap profile with data:', $data);
+
         $profile = $request->user()->juantapProfile()->create($data);
         return response()->json(['data' => $profile], 201);
     }

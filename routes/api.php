@@ -255,19 +255,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
 Route::get('/galleries', [GalleryController::class, 'index']);
 
 Route::middleware('auth:sanctum')->group(function () {
-    // Admin
     Route::post('admin/galleries', [GalleryController::class, 'store']);
     Route::put('admin/galleries/{id}', [GalleryController::class, 'update']);
     Route::delete('admin/galleries/{id}', [GalleryController::class, 'destroy']);
 });
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('juantap', [JuanTapController::class, 'show']);
-    Route::post('juantap', [JuanTapController::class, 'store']);
-    Route::put('juantap', [JuanTapController::class, 'update']);
-    Route::delete('juantap', [JuanTapController::class, 'destroy']);
-});
 
-// JUANTAP ROUTES - FIXED
+// JUANTAP ROUTES 
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('juantap', [JuanTapController::class, 'show']);
@@ -277,9 +270,12 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // MEMBER PROFILE ROUTES
+
 Route::middleware('auth:sanctum')->group(function () {
-    Route::put('/member/profile', [UserController::class, 'updateProfile']);
+    Route::get('member/profile', [UserController::class, 'me']);           // read-only user
     Route::get('/member/profile', [UserController::class, 'getProfile']);
+    Route::put('member/profile', [UserController::class, 'updateProfile']);  // editable
+    Route::get('member/profile/{id}', [UserController::class, 'show']);       // read-only by id
 });
 
 // ===================================

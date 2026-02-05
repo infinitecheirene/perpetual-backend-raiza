@@ -260,6 +260,63 @@ class UserController extends Controller
     /**
      * Authenticated user: Update own profile
      */
+    public function updateProfile(Request $request)
+    {
+        $user = auth()->user();
+
+        $data = $request->only([
+            'alias',
+            'tenure',
+            'member_since',
+            'projects',
+            'positions',
+            'achievements',
+            'profile_image',
+            'juantap_nfc'
+        ]);
+
+        // Validate input
+        $validator = Validator::make($data, [
+            'alias' => 'nullable|string|max:255',
+            'tenure' => 'nullable|string|max:255',
+            'member_since' => 'nullable|date',
+            'projects' => 'nullable|string',
+            'positions' => 'nullable|string',
+            'achievements' => 'nullable|string',
+            'profile_image' => 'nullable|string|max:255',
+            'juantap_nfc' => 'nullable|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        // Debugging log to verify input data
+        Log::info('Updating MemberProfile with data:', $data);
+
+        // Update or create MemberProfile
+        $profile = $user->memberProfile;
+        if (!$profile) {
+            $profile = $user->memberProfile()->create($data);
+            Log::info('Created new MemberProfile:', $profile->toArray());
+        } else {
+            $profile->update($data);
+            Log::info('Updated existing MemberProfile:', $profile->toArray());
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Profile updated successfully',
+            'data' => [
+                'member_profile' => $profile,
+            ],
+        ]);
+    }
+
     public function getProfile(Request $request)
     {
         $user = $request->user();
@@ -267,130 +324,13 @@ class UserController extends Controller
         if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized',
+                'message' => 'Unauthorized'
             ], 401);
-        }
-
-        // Load related profiles
-        $user->load('memberProfile', 'juantapProfile');
-
-        // Base profile
-        $profileData = [
-            'name' => $user->name,
-            'status' => $user->status,
-            'membership_id' => $user->membership_id,
-            'member_since' => $user->created_at->year,
-        ];
-
-        // Merge member profile if exists
-        if ($user->memberProfile) {
-            $profileData = array_merge($profileData, [
-                'alias' => $user->memberProfile->alias,
-                'tenure' => $user->memberProfile->tenure,
-                'projects' => $user->memberProfile->projects,
-                'positions' => $user->memberProfile->positions,
-                'achievements' => $user->memberProfile->achievements,
-                'profile_image' => $user->memberProfile->profile_image,
-            ]);
-        } else {
-            // Ensure keys exist even if profile missing
-            $profileData = array_merge($profileData, [
-                'alias' => null,
-                'tenure' => null,
-                'projects' => null,
-                'positions' => null,
-                'achievements' => null,
-                'profile_image' => null,
-            ]);
-        }
-
-        // Merge juantap profile if exists
-        if ($user->juantapProfile) {
-            $profileData = array_merge($profileData, [
-                'juantap_nfc' => true,
-                'profile_url' => $user->juantapProfile->profile_url,
-                'qr_code' => $user->juantapProfile->qr_code,
-                'status' => $user->juantapProfile->status,
-                'subscription' => $user->juantapProfile->subscription,
-            ]);
-        } else {
-            $profileData = array_merge($profileData, [
-                'juantap_nfc' => false,
-                'profile_url' => null,
-                'qr_code' => null,
-                'status' => 'inactive',
-                'subscription' => 'silver',
-            ]);
         }
 
         return response()->json([
             'success' => true,
-            'data' => $profileData,
+            'data' => $user->memberProfile
         ]);
     }
-
-    /**
-     * Authenticated user: Update own profile
-     */
-    public function updateProfile(Request $request)
-    {
-        $user = $request->user();
-
-        if (!$user) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
-        }
-
-        try {
-            $data = [
-                'alias' => $request->input('alias'),
-                'tenure' => $request->input('tenure'),
-                'projects' => $request->input('projects'),
-                'positions' => $request->input('positions'),
-                'achievements' => $request->input('achievements'),
-            ];
-
-            // Handle uploaded profile image
-            if ($request->hasFile('profile_image')) {
-                $file = $request->file('profile_image');
-                $filename = 'profile_' . $user->id . '_' . time() . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('public/profiles', $filename);
-                $data['profile_image'] = '/storage/profiles/' . $filename;
-            }
-
-            // Update or create member profile
-            $profile = $user->memberProfile()->updateOrCreate(
-                ['user_id' => $user->id],
-                $data
-            );
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Profile updated successfully',
-                'data' => [
-                    'name' => $user->name,
-                    'status' => $user->status,
-                    'membership_id' => $user->membership_id,
-                    'member_since' => $user->created_at->year,
-                    'alias' => $profile->alias,
-                    'tenure' => $profile->tenure,
-                    'projects' => $profile->projects,
-                    'positions' => $profile->positions,
-                    'achievements' => $profile->achievements,
-                    'profile_image' => $profile->profile_image,
-                ],
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Profile update failed', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update profile',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
 }
