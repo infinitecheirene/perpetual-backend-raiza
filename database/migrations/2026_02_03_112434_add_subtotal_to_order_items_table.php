@@ -7,34 +7,13 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('order_items', function (Blueprint $table) {
-            $table->id();
-
-            // Link to order
-            $table->unsignedBigInteger('order_id');
-            $table->foreign('order_id')
-                ->references('id')
-                ->on('orders')
-                ->onDelete('cascade');
-
-            // Link to product
-            $table->unsignedBigInteger('product_id');
-            $table->foreign('product_id')
-                ->references('id')
-                ->on('products')
-                ->onDelete('cascade');
-
-            // Item details
-            $table->unsignedInteger('quantity')->default(1);
-            $table->decimal('price', 10, 2); // snapshot of product price at time of order
-            $table->decimal('subtotal', 10, 2); // quantity * price
-
-            $table->timestamps();
+        Schema::table('order_items', function (Blueprint $table) {
+            // This table already has subtotal column, so this is just a marker migration
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('order_items');
+        // Nothing to roll back
     }
 };
