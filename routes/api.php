@@ -309,9 +309,21 @@ Route::middleware('auth:sanctum')->group(function () {
 // ===================================
 // EVENT ROUTES
 
+// Public routes
+Route::get('/events', [EventController::class, 'index']);
+
+// Protected routes - authenticated users
 Route::middleware(['auth:sanctum'])->group(function () {
-    Route::post('/events', [EventController::class, 'store']);
-    Route::get('/events', [EventController::class, 'index']);
-    Route::post('/events/{id}/respond', [EventController::class, 'respond']);
-    Route::middleware('auth:sanctum')->get('/events/invites', [EventController::class, 'getInvites']);
+    // Member event response routes
+    Route::post('/events/{event}/respond', [EventController::class, 'respond']);
+    Route::get('/events/invites', [EventController::class, 'getInvites']);
+    
+    // Admin event management routes
+    Route::prefix('admin/events')->group(function () {
+        Route::get('/', [EventController::class, 'adminIndex']);
+        Route::post('/', [EventController::class, 'store']);
+        Route::get('/{event}', [EventController::class, 'show']);
+        Route::put('/{event}', [EventController::class, 'update']);
+        Route::delete('/{event}', [EventController::class, 'destroy']);
+    });
 });
